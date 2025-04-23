@@ -296,10 +296,11 @@ class ClientAPI {
     return this.makeRequest(`${this.baseURL}/users/exp`, "get");
   }
 
-  async getCheckin() {
-    return this.makeRequest(`${this.baseURL}/account/personalcenter/quests/daily`, "get");
-  }
   async getTasks() {
+    return this.makeRequest(`${this.baseURL}/account/personalcenter/quests/tutorial?page=1&size=15`, "get");
+  }
+
+  async getTasksDaily() {
     return this.makeRequest(`${this.baseURL}/account/personalcenter/quests/daily`, "get");
   }
 
@@ -342,24 +343,28 @@ class ClientAPI {
   }
 
   async handleTasks() {
+    const tasksDaily = await this.getTasksDaily();
     const tasks = await this.getTasks();
-    if (!tasks.success) {
+
+    if (!tasksDaily.success) {
       this.log("Can't get tasks", "error");
       return;
     }
-    if (tasks.data?.length == 0) {
+    if (tasksDaily.data?.length == 0) {
       this.log("No tasks available", "warning");
       return;
     }
-    const taskAvaliable = tasks.data.quests.filter((item) => !item.completed_today && !settings.SKIP_TASKS.includes(item.id));
+    const tasksDailyAvaliable = tasksDaily.data.quests.filter((item) => !item.completed_today && !settings.SKIP_TASKS.includes(item.id));
+    const tasksub = tasks.data.list.filter((item) => !item.is_completed && !settings.SKIP_TASKS.includes(item.id) && settings.TASKS_ID.includes(item.id));
 
+    const taskAvaliable = [...tasksDailyAvaliable, ...tasksub];
     for (const task of taskAvaliable) {
       const { id, title, points } = task;
       const timeSleep = getRandomNumber(settings.DELAY_TASK[0], settings.DELAY_TASK[1]);
       this.log(`Starting task ${id} | ${title} | Delay ${timeSleep}s...`, "info");
       await sleep(timeSleep);
       const result = await this.completeTask(id);
-      if (result.success && result?.data?.message === "Quest completed successfully") {
+      if (result.success) {
         this.log(`Task ${id} | ${title} completed successfully | Reward: ${points} | ${JSON.stringify(result.data)}`, "success");
       } else {
         this.log(`Task ${id} | ${title} failed: ${JSON.stringify(result || {})}`, "warning");
