@@ -384,10 +384,9 @@ class ClientAPI {
 
     this.log("No found token or experied, logining......", "warning");
     const loginRes = await this.auth();
-    if (loginRes.success) {
-      console.log(loginRes);
+    if (loginRes.success && loginRes.data?.token) {
       await saveJson(this.session_name, JSON.stringify(loginRes.data || {}), "localStorage.json");
-      return loginRes;
+      return loginRes.data.token;
     }
     this.log("Can't get new token...", "warning");
     return null;
